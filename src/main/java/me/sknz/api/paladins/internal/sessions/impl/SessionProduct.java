@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 
 import java.io.IOException;
+import java.util.Objects;
 
 public class SessionProduct implements ISessionProduct {
 
@@ -18,7 +19,8 @@ public class SessionProduct implements ISessionProduct {
     private final PaladinsDeveloper developer;
     private final SessionRepository repository;
 
-    private PaladinsSession session;
+    private final PaladinsSession session;
+    private boolean isValid;
 
     public SessionProduct(PaladinsDeveloper developer, PaladinsSession session,
                           SessionRepository repository, OkHttpClient client) {
@@ -26,6 +28,7 @@ public class SessionProduct implements ISessionProduct {
         this.repository = repository;
         this.session = session;
         this.client = client;
+        this.isValid = true;
     }
 
     @Override
@@ -35,7 +38,7 @@ public class SessionProduct implements ISessionProduct {
                 .build();
 
         ObjectMapper mapper = new ObjectMapper();
-        JsonNode node = mapper.readTree(client.newCall(request).execute().body().string());
+        JsonNode node = mapper.readTree(Objects.requireNonNull(client.newCall(request).execute().body(), "session request response is null").string());
         if (node.get("ret_msg").isNull()){
             repository.save(session.update());
             return node;
@@ -51,12 +54,17 @@ public class SessionProduct implements ISessionProduct {
                 .url(PaladinsAPIUtil.formatURL("testsession", developer.getDevId(), developer.getAuthKey(), session.getSessionId()))
                 .build();
 
-        if (client.newCall(request).execute().body().string().contains("successful test")) {
+        String response = Objects.requireNonNull(client.newCall(request).execute().body(), "test session response is null").string();
+        if (response.contains("successful test")) {
             repository.save(session.update());
-            return true;
+            return this.isValid = true;
         }
+        return this.isValid = false;
+    }
 
-        return false;
+    @Override
+    public boolean isInvalid() {
+        return !isValid;
     }
 
     @Override

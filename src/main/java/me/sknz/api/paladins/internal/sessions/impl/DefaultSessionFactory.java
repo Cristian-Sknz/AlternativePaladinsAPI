@@ -2,6 +2,7 @@ package me.sknz.api.paladins.internal.sessions.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import me.sknz.api.paladins.exception.PaladinsAPIException;
 import me.sknz.api.paladins.internal.sessions.ISessionProduct;
 import me.sknz.api.paladins.internal.sessions.SessionFactory;
 import me.sknz.api.paladins.model.PaladinsDeveloper;
@@ -13,7 +14,11 @@ import me.sknz.api.paladins.respository.SessionRepository;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -26,6 +31,7 @@ public class DefaultSessionFactory implements SessionFactory {
     private final PaladinsDeveloperRepository developerRepository;
     private final SessionRepository sessionRepository;
     private final OkHttpClient client;
+    private final Logger logger = LoggerFactory.getLogger(DefaultSessionFactory.class);
 
     private final List<ISessionProduct> sessionProducts = new ArrayList<>();
 
@@ -44,7 +50,7 @@ public class DefaultSessionFactory implements SessionFactory {
                         developer.getAuthKey(), null))
                 .build());
 
-        JsonNode node = new ObjectMapper().readTree(call.execute().body().string());
+        JsonNode node = new ObjectMapper().readTree(Objects.requireNonNull(call.execute().body(), "create session response is null").string());
         if (APIMessage.isValidResponse(node.get("ret_msg").asText())) {
             PaladinsSession session = new PaladinsSession(node.get("session_id").asText(), developer);
             developer.addSession(session);
@@ -54,15 +60,14 @@ public class DefaultSessionFactory implements SessionFactory {
             sessionProducts.add(product);
             return product;
         }
-        // TODO Adicionar uma exceção descente
-        throw new RuntimeException("Não foi possivel criar uma sessão");
+
+        throw new PaladinsAPIException(node.get("ret_msg").asText());
     }
 
     @Override
     public ISessionProduct resumeSession(String sessionId, PaladinsDeveloper developer) throws IOException {
-        if (sessionRepository.existsById(sessionId)){
+        if (sessionRepository.existsById(sessionId)) {
             throw new RuntimeException("Esta sessão já existe no banco de dados");
-            // TODO lançar uma exceção descente
         }
         ISessionProduct product = createProduct(new PaladinsSession(sessionId, developer));
         if (product.testSession()){
@@ -70,8 +75,33 @@ public class DefaultSessionFactory implements SessionFactory {
             developerRepository.save(developer);
             this.sessionProducts.add(product);
         }
-        // TODO lançar uma exceção descente
-        throw new RuntimeException("Não foi possivel criar uma sessão");
+        throw new PaladinsAPIException("This session you tried to resume is invalid.");
+    }
+
+    private void resumeDatabaseSessions() {
+        List<PaladinsSession> sessions = sessionRepository.findAll();
+        for (PaladinsSession session : sessions) {
+            if (sessionProducts.stream().noneMatch(product -> product.getSessionId()
+                    .equalsIgnoreCase(session.getSessionId()))){
+                try {
+                    ISessionProduct product = createProduct(session);
+                    if (product.testSession()){
+                        this.sessionProducts.add(product);
+                        continue;
+                    }
+                    // TODO log invalid session
+                    sessionRepository.delete(session);
+                } catch (IOException e){
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    @Override
+    public boolean removeSession(String sessionId, PaladinsDeveloper developer) {
+        // TODO add remove session
+        return false;
     }
 
     @Override
@@ -81,6 +111,12 @@ public class DefaultSessionFactory implements SessionFactory {
         }
 
         return developer.getSessions().stream().map(this::createProduct).collect(Collectors.toSet());
+    }
+
+    @EventListener
+    protected void initActiveSessions(ContextRefreshedEvent event) {
+        this.logger.info("Iniciando todas as sessões no banco de dados.");
+        this.resumeDatabaseSessions();
     }
 
     private ISessionProduct createProduct(PaladinsSession paladinsSession){

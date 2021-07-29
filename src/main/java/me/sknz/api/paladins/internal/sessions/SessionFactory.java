@@ -9,5 +9,6 @@ public interface SessionFactory {
 
     ISessionProduct createSession(PaladinsDeveloper developer) throws IOException;
     ISessionProduct resumeSession(String sessionId, PaladinsDeveloper developer) throws IOException;
+    boolean removeSession(String sessionId, PaladinsDeveloper developer);
     Set<ISessionProduct> getActiveSessions(PaladinsDeveloper developer);
 }

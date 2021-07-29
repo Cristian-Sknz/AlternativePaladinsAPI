@@ -9,6 +9,7 @@ public interface ISessionProduct {
 
     JsonNode request(String method, Object... arguments) throws IOException;
     boolean testSession() throws IOException;
+    boolean isInvalid();
     PaladinsSession getPaladinsSession();
 
     default String getSessionId(){
