@@ -1,8 +1,14 @@
 package me.sknz.api.paladins.paladins.models.champions;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.util.Arrays;
 
 public class ChampionSkin {
+
+    @JsonIgnore
+    public final int championId;
 
     public final String skinName;
     public final String skinNameEnglish;
@@ -11,12 +17,13 @@ public class ChampionSkin {
 
     public final Rarity rarity;
 
-    public ChampionSkin(String skinName, String skinNameEnglish, int skinId1, int skinId2, Rarity rarity) {
-        this.skinName = skinName;
-        this.skinNameEnglish = skinNameEnglish;
-        this.skinId1 = skinId1;
-        this.skinId2 = skinId2;
-        this.rarity = rarity;
+    public ChampionSkin(JsonNode node) {
+        this.championId = node.get("champion_id").asInt();
+        this.skinName = node.get("skin_name").asText();
+        this.skinNameEnglish = node.get("skin_name_english").asText();
+        this.skinId1 = node.get("skin_id1").asInt();
+        this.skinId2 = node.get("skin_id2").asInt();
+        this.rarity = Rarity.getRarityByName(node.get("rarity").asText());
     }
 
     public enum Rarity {
@@ -39,6 +46,5 @@ public class ChampionSkin {
         public int getId() {
             return id;
         }
-
     }
 }

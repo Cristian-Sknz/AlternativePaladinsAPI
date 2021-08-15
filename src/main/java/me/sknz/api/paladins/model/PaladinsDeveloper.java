@@ -23,9 +23,11 @@ public class PaladinsDeveloper {
     @JsonIgnore
     private APIUserModel devId;
     private String authKey;
-    @OneToMany(cascade = CascadeType.ALL)
+
+    @OneToMany(cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.EAGER)
     private Set<PaladinsSession> sessions;
-    @CreatedDate
     private OffsetDateTime createdIn;
 
     public PaladinsDeveloper() {
@@ -62,6 +64,10 @@ public class PaladinsDeveloper {
 
     public void addSession(PaladinsSession session){
         this.sessions.add(session);
+    }
+
+    public void setSessions(Set<PaladinsSession> sessions) {
+        this.sessions = sessions;
     }
 
     public OffsetDateTime getCreatedIn() {

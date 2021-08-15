@@ -2,6 +2,7 @@ package me.sknz.api.paladins.internal.sessions.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import me.sknz.api.paladins.exception.PaladinsAPIException;
 import me.sknz.api.paladins.internal.sessions.ISessionProduct;
 import me.sknz.api.paladins.model.PaladinsDeveloper;
 import me.sknz.api.paladins.model.PaladinsSession;
@@ -39,13 +40,16 @@ public class SessionProduct implements ISessionProduct {
 
         ObjectMapper mapper = new ObjectMapper();
         JsonNode node = mapper.readTree(Objects.requireNonNull(client.newCall(request).execute().body(), "session request response is null").string());
-        if (node.get("ret_msg").isNull()){
+        JsonNode retmsg = (node.isArray())
+                ? node.get(0).get("ret_msg")
+                : node.get("ret_msg");
+
+        if (retmsg.isNull()){
             repository.save(session.update());
             return node;
         }
 
-        // TODO adicionar um sistema de verifição de resposta.
-        throw new IOException("Erro ao fazer uma solicitação");
+        throw new PaladinsAPIException(retmsg.asText());
     }
 
     @Override

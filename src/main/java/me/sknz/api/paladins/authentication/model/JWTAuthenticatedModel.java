@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class JWTAuthenticatedModel {
 
-    @JsonProperty("token_token")
+    @JsonProperty("token_type")
     private String tokenType;
     @JsonProperty("access_token")
     private String accessToken;

@@ -36,4 +36,10 @@ public class UserController {
         user.setDeveloper(new PaladinsDeveloper(user, register.getAuthKey()));
         return ResponseEntity.ok(repository.save(user));
     }
+
+    @GetMapping(value = "/ping")
+    public ResponseEntity<String> ping() {
+        // TODO MessageBundle
+        return ResponseEntity.ok("Você está se comunicando corretamente com a API!");
+    }
 }

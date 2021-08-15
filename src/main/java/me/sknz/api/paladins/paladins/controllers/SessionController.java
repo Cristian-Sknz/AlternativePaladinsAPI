@@ -61,6 +61,9 @@ public class SessionController {
 
     @GetMapping(value = "/removesession", produces = "application/json")
     public ResponseEntity<Object> removeSession(@RequestParam(name = "sessionId") String sessionId){
+        if (sessionFactory.removeSession(sessionId, authenticationUser.getUserDeveloper())){
+            return ResponseEntity.ok().build();
+        }
         return ResponseEntity.noContent().build();
     }
 

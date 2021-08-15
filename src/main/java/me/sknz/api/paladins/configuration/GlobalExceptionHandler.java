@@ -1,5 +1,6 @@
 package me.sknz.api.paladins.configuration;
 
+import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -31,7 +32,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @Autowired
     private MessageSource messageSource;
 
-    @ExceptionHandler(TokenExpiredException.class)
+    @ExceptionHandler({TokenExpiredException.class, JWTDecodeException.class})
     public void handleTokenExpiredException(HttpServletResponse response, TokenExpiredException e) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode node = mapper.createObjectNode();
@@ -64,12 +65,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode node = mapper.createObjectNode();
         node.put("Authentication", "Bearer");
-        node.put("Message", e.getMessage());
+        switch (e.getAPIMessage()) {
+            case DailyLimitExceeded:
+            case SessionLimitExceeded:
+            case ActiveSessionLimit:
+                // TODO MessageBundle
+                node.put("Message", "Você excedeu o limite de solicitações da API Oficial do Paladins");
+                node.put("APIMessage", e.getMessage());
+                response.setStatus(HttpStatus.BANDWIDTH_LIMIT_EXCEEDED.value());
+            default:
+                node.put("Message", e.getMessage());
+                response.setStatus(HttpStatus.BAD_REQUEST.value());
+        }
         node.put("Timestamp", OffsetDateTime.now(Clock.systemUTC())
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
 
         response.setContentType("application/json");
-        response.setStatus(HttpStatus.BAD_REQUEST.value());
         mapper.writeValue(response.getWriter(), node);
     }
 
